@@ -1,0 +1,11 @@
+{% extends "layout.html" %}
+
+{% block body %}
+
+<h1>Search Results</h1>
+
+            {% for location in location_result %}
+                <a href="{{ url_for('search_location', location_id=location.id) }}"<p>{{ location.zipcode }}: {{ location.city }}, {{location.state}}</p></a>
+            {% endfor %}
+
+{% endblock %}
