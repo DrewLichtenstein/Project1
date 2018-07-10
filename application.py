@@ -1,9 +1,11 @@
 import os
+import requests, json
 
-from flask import Flask, session, render_template, request
+from flask import Flask, session, render_template, request, jsonify
 from flask_session import Session
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
+
 
 app = Flask(__name__)
 
@@ -26,6 +28,7 @@ def index():
     return render_template('login.html')
 
 
+
 @app.route("/register")
 def registration ():
     return render_template('registration.html')
@@ -42,6 +45,8 @@ def on_submit ():
     db.execute("INSERT INTO user_login (username, password) VALUES (:username, :password)",
             {"username": username, "password": password})
     db.commit()
+    #db.execute("INSERT INTO check_in(username) VALUES(:username)", {"username":username})
+    #db.commit()
     return render_template('login.html')
 
 @app.route("/logged_in", methods=["POST"])
@@ -50,23 +55,18 @@ def logged_in ():
     password = request.form.get("password")
     if db.execute("SELECT * FROM user_login WHERE username = :username AND password = :password", {"username": username, "password": password}).rowcount == 0:
         return render_template('error.html')
-
-    #else:
-      #  if db.execute("SELECT * FROM note_holder WHERE username = :username",{"username":session["username"]}).rowcount == 0:
-       #     db.execute("INSERT INTO note_holder (username) VALUES (:username)",{"username":session["username"]})
-        #    db.commit()
-        #else:
-         #   print("hi")
-   # print(session["username"])
-    return render_template('main.html')
+    else:
+        session['user'] = username
+        return render_template('main.html')
 
 @app.route("/search_location", methods=["POST"])
 def search_location():
-    print(session["username"])
     location_search = request.form.get("location")
+    # Change the search for location to upper case since that's how it is in the database
     location_search = location_search.upper()
-    # The syntax for db.execute does not work, though I tried a lot of different iterations on %x% with the variable in the middle to no success.
-   # location_result = db.execute("SELECT id, zipcode, city, state FROM zip_data WHERE zipcode LIKE '%'+:location_search+'%' OR city LIKE '%'+:location_search+'%' OR state LIKE '%'+:location_search+'%'", {"location_search":location_search}).fetchall()
+    # I couldn't get the syntax for a LIKE search to work, though I tried a lot of different iterations on %x% with the variable in the middle to no success.
+    # Any feedback on how to do one (I left my final example below) would be appreciated!
+    # Location_result = db.execute("SELECT id, zipcode, city, state FROM zip_data WHERE zipcode LIKE '%'+:location_search+'%' OR city LIKE '%'+:location_search+'%' OR state LIKE '%'+:location_search+'%'", {"location_search":location_search}).fetchall()
     location_result = db.execute("SELECT id, zipcode, city, state FROM zip_data WHERE city=:location_search",{"location_search":location_search}).fetchall()
     return render_template('search_location.html',location_result=location_result)
 
@@ -78,17 +78,48 @@ def location(location_id):
     location_info = db.execute("SELECT * FROM zip_data WHERE id = :id", {"id": location_id}).fetchone()
     if location is None:
         return render_template("error.html")
+#if code about finding session[username]=username rowcount == 0:
+    comments = db.execute("SELECT comment FROM location_comments WHERE ref_id = :id", {"id":location_id}).fetchall()
+    print(location_info.latitude)
+    weather = requests.get(f"https://api.darksky.net/forecast/55d231cd30289abbca6266f1bdb90dc0/{location_info.latitude},{location_info.longitude}")
+    weather_json = weather.json()
+    return render_template("location_info.html",location_info=location_info,comments=comments,weather_json=weather_json)
 
-    my_notes = db.execute("SELECT notes FROM note_holder WHERE username = :username", {"username":session["username"]}).fetchone()
-    return render_template("location_info.html",location_info=location_info)
+@app.route("/check_in", methods=["POST"])
+def check_in():
+    comment = request.form.get("comment")
+    location_id = request.form.get("location_id")
+    db.execute("INSERT INTO location_comments (ref_id, comment) VALUES (:id, :comment)", {"id":location_id, "comment":comment})
+    db.commit()
+    db.execute("UPDATE zip_data SET check_in = check_in+1 WHERE :id=id", {"id":location_id})
+    db.commit()
+    return render_template("thanks.html")
 
-#@app.route("/logut")
-#def logout ():
-#    session.pop(session["username"], None)
-#   print(session["username"])
-#    return render_template("login.html")
+@app.route("/api/zipcode/<lookup_zipcode>")
+# I called it "lookup_zipcode" instead of "zip" because "zip" seems to have a specific meaning in Python
+def location_api(lookup_zipcode):
+   #Return details about a single location.
+
+    # Make sure location exists.
+    zip_result = db.execute("SELECT * FROM zip_data WHERE zipcode=:lookup_zipcode",{"lookup_zipcode":lookup_zipcode}).fetchone()
+    if zip_result is None:
+        return jsonify({"error": "Zipcode does not exist"}), 404
+    return jsonify({
+            "place_name": zip_result.city,
+            "state": zip_result.state,
+            "latitude": zip_result.latitude,
+            "longitude": zip_result.longitude,
+            "zip": zip_result.zipcode,
+            "population": zip_result.population,
+            "check_ins": zip_result.check_in
+        })
 
 
-# @app.route("/check_in")
-# def check_in():
+
+
+@app.route("/logout")
+def logout ():
+    session.pop('user', None)
+    return render_template("login.html")
+
 

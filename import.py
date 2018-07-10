@@ -19,7 +19,7 @@ def main():
     # Iterate over the rows of the opened CSV file.
     for row in reader:
 
-        db.execute("INSERT INTO zip_data (zipcode, city, state, lat, long, population) VALUES (:a, :b, :c, :d, :e, :f)",
+        db.execute("INSERT INTO zip_data (zipcode, city, state, latitude, longitude, population) VALUES (:a, :b, :c, :d, :e, :f)",
                     {"a": row[0], "b": row[1], "c": row[2], "d": row[3], "e": row[4], "f": row[5]})
 
     # Technically this is when all of the queries we've made happen!
