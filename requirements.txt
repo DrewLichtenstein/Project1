@@ -4,3 +4,4 @@ psycopg2-binary
 SQLAlchemy
 Request
 jsonify
+from passlib.hash import pbkdf2_sha256

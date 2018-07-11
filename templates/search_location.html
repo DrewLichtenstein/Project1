@@ -3,9 +3,10 @@
 {% block body %}
 
 <h1>Search Results</h1>
-
+<p>Be sure you are logged in before you select a location!</p>
+<br>
             {% for location in location_result %}
                 <a href="{{ url_for('location', location_id=location.id) }}"><p>{{ location.zipcode }}: {{ location.city }}, {{location.state}}</p></a>
             {% endfor %}
-
+<p>Search for <a href={{ url_for('main_return') }}>another location?</a></p>
 {% endblock %}
