@@ -54,7 +54,7 @@ def logged_in ():
     username = request.form.get("username")
     password = request.form.get("password")
     if db.execute("SELECT * FROM user_login WHERE username = :username AND password = :password", {"username": username, "password": password}).rowcount == 0:
-        return render_template('error.html')
+        return render_template('error.html', message="Incorrect username and/or password. Try logging in again.")
     else:
         session['user'] = username
         return render_template('main.html')
@@ -66,7 +66,7 @@ def search_location():
     location_search = location_search.upper()
     # I couldn't get the syntax for a LIKE search to work, though I tried a lot of different iterations on %x% with the variable in the middle to no success.
     # Any feedback on how to do one (I left my final example below) would be appreciated!
-    # Location_result = db.execute("SELECT id, zipcode, city, state FROM zip_data WHERE zipcode LIKE '%'+:location_search+'%' OR city LIKE '%'+:location_search+'%' OR state LIKE '%'+:location_search+'%'", {"location_search":location_search}).fetchall()
+   # location_result = db.execute("SELECT id, zipcode, city, state FROM zip_data WHERE zipcode LIKE '%'+:location_search+'%' OR city LIKE '%'+:location_search+'%' OR state LIKE '%'+:location_search+'%'", {"location_search":location_search}).fetchall()
     location_result = db.execute("SELECT id, zipcode, city, state FROM zip_data WHERE city=:location_search",{"location_search":location_search}).fetchall()
     return render_template('search_location.html',location_result=location_result)
 
@@ -77,19 +77,22 @@ def location(location_id):
     # Make sure location exists.
     location_info = db.execute("SELECT * FROM zip_data WHERE id = :id", {"id": location_id}).fetchone()
     if location is None:
-        return render_template("error.html")
-#if code about finding session[username]=username rowcount == 0:
+        return render_template("error.html", message="No such location exists")
+
     comments = db.execute("SELECT comment FROM location_comments WHERE ref_id = :id", {"id":location_id}).fetchall()
-    print(location_info.latitude)
     weather = requests.get(f"https://api.darksky.net/forecast/55d231cd30289abbca6266f1bdb90dc0/{location_info.latitude},{location_info.longitude}")
     weather_json = weather.json()
-    return render_template("location_info.html",location_info=location_info,comments=comments,weather_json=weather_json)
+
+    if db.execute("SELECT * FROM location_comments WHERE username=:username AND ref_id=:location_id", {"username":session['user'], "location_id":location_id}).rowcount == 0:
+        return render_template("location_info.html",location_info=location_info,comments=comments,weather_json=weather_json)
+    else:
+        return render_template("location_info_noform.html", location_info=location_info,comments=comments,weather_json=weather_json)
 
 @app.route("/check_in", methods=["POST"])
 def check_in():
     comment = request.form.get("comment")
     location_id = request.form.get("location_id")
-    db.execute("INSERT INTO location_comments (ref_id, comment) VALUES (:id, :comment)", {"id":location_id, "comment":comment})
+    db.execute("INSERT INTO location_comments (ref_id, comment, username) VALUES (:id, :comment, :username)", {"id":location_id, "comment":comment, "username":session['user']})
     db.commit()
     db.execute("UPDATE zip_data SET check_in = check_in+1 WHERE :id=id", {"id":location_id})
     db.commit()
@@ -121,5 +124,9 @@ def location_api(lookup_zipcode):
 def logout ():
     session.pop('user', None)
     return render_template("login.html")
+
+@app.route("/main")
+def main_return ():
+    return render_template("main.html")
 
 

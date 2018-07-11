@@ -28,11 +28,6 @@
 {% endfor %}
 <br>
 
-<form action="{{ url_for('check_in') }}" method="post">
-  Write a comment and check-in!:<br>
-  <input type="text" name="comment"><br>
-  <div style="display:none"><input type="none" name="location_id" value="{{location_info.id}}"></div>
-  <input type="submit" name="check in" value="Check In!">
-</form>
-
+<br>
+<p>You've already checked in here! Search for <a href={{ url_for('main_return') }}>another location?</a></p>
 {% endblock %}
