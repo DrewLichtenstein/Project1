@@ -1,7 +1,29 @@
 # Project 1
 
-File summary: Appliation.py handles all of the functions, import.py is a simple CSV-to-SQL importer for zip code data, and all the various
-html templates are in the main template folder.
+File summary: Appliation.py handles all of the functions as follows:
+-- def index() renders the login.html
+
+-- def registration renders the registration.html
+
+-- def /on_registration checks to see if the registered username is taken and, if not, stores registration information to the user_login table
+
+-- def Logged_in checks to see if username and password match and, if so, renders main.html
+
+-- def search_location is the main function for main.html; it searchers the zip_data table for a location or zipcode (and should throw an error if
+you are not logged in, but I haven't quite figured out how to do that...)
+
+-- search_location/location_id renders either location_info.html or location_info_noform.html (depenidng on if a user has checked-in to a location before);
+both those html pages include location information from the zip_data table and also current weather information from the Dark Sky API. Location_info.html
+has a way to check-in and make comments, while location_info_noform.html removes that form.
+
+-- def location_api(lookup_zipcode) provides a JSON version of the zip_data table based on a location's ID
+
+-- def logout logs the user out
+
+-- def main let's anyone search for a location without being logged in.
+
+import.py is a simple CSV-to-SQL importer for zip code data, and all the various html templates are in the main template folder (all extended from
+layout.html, which includes the Bootstrap CSS and header). The database templates are in the weather_database sql file.
 
 Overall, working on this project was really rewarding; I really struggled at first, but I eventually got things to work after many hours
 of practice -- programming can be quite rewarding!
