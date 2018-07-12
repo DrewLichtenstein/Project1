@@ -1,9 +1,13 @@
 {% extends "layout.html" %}
 {% block body %}
 <h2>Welcome</h2>
-<p>Type the name of a city or town and hit enter!</p>
+<p>Type the name of a location or zip code!</p>
 <form action="{{ url_for('search_location') }}" method="post">
             <div class="form-group">
             <input class="form-control" name="location">
+            <div class="form-group">
+                <br>
+            <button class="btn btn-primary">Submit</button>
+        </div>
         </div>
 {% endblock %}

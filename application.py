@@ -1,4 +1,5 @@
-import os
+# still need to set the correct time
+import os, datetime
 import requests, json
 
 from flask import Flask, session, render_template, request, jsonify
@@ -42,6 +43,8 @@ def login():
 @app.route("/on_registration", methods=["POST"])
 def on_registration ():
     username = request.form.get("username")
+    if username == "":
+        return render_template ('error.html', message="Register a username!")
     password_no_hash = request.form.get("password")
     password = pbkdf2_sha256.hash(password_no_hash)
     if db.execute("SELECT * FROM user_login WHERE username = :username", {"username":username}).rowcount == 0:
@@ -49,7 +52,7 @@ def on_registration ():
         db.commit()
         return render_template('login.html')
     else:
-        return render_template('error.html', message="Username taken! Please try registeroing again with a different username.")
+        return render_template('error.html', message="Username taken! Please try registering again with a different username.")
 
 # verify log-in is corect
 @app.route("/logged_in", methods=["POST"])
@@ -72,15 +75,17 @@ def search_location():
         location_search = request.form.get("location")
         # Change the search for location to upper case since that's how it is in the database
         location_search = location_search.upper()
-        # I couldn't get the syntax for a LIKE search to work, though I tried a lot of different iterations on %x% with the variable in the middle to no success.
-        # Any feedback on how to do one (I left my final example below) would be appreciated!
-        # location_result = db.execute("SELECT id, zipcode, city, state FROM zip_data WHERE zipcode LIKE '%'+:location_search+'%' OR city LIKE '%'+:location_search+'%' OR state LIKE '%'+:location_search+'%'", {"location_search":location_search}).fetchall()
-        location_result = db.execute("SELECT id, zipcode, city, state FROM zip_data WHERE city=:location_search",{"location_search":location_search}).fetchall()
+        print(location_search)
+        # check to see if the search term exists and, if it does not, throw an error
+        if db.execute("SELECT * FROM zip_data WHERE zipcode LIKE :location_search OR city LIKE :location_search OR state LIKE :location_search", {"location_search": f"%{location_search}%"}).rowcount == 0:
+            return render_template("error.html", message="No search result found!")
+       # location result can match on partial information
+        location_result = db.execute("SELECT * FROM zip_data WHERE zipcode LIKE :location_search OR city LIKE :location_search", {"location_search": f"%{location_search}%"}).fetchall()
         return render_template('search_location.html',location_result=location_result)
 
-# I tried to throw a Key Error when they aren't logged in, but it did not work the way I thought it would.
+# I tried to throw a Key Error when they aren't logged in, but it does not work the way I thought it would.
     except KeyError:
-        return render_template('error.html', message="Please log-in.")
+        return render_template('error.html', message="Please log-in to see location pages!")
 
 @app.route("/search_location/<int:location_id>")
 def location(location_id):
@@ -96,14 +101,19 @@ def location(location_id):
     weather = requests.get(f"https://api.darksky.net/forecast/55d231cd30289abbca6266f1bdb90dc0/{location_info.latitude},{location_info.longitude}")
     weather_json = weather.json()
 
-    # If the user has not commented on this site before, render a template with the check-in form. If they have checked-in before, render a template without
-    # the form.
-    if db.execute("SELECT * FROM location_comments WHERE username=:username AND ref_id=:location_id", {"username":session['user'], "location_id":location_id}).rowcount == 0:
-        return render_template("location_info.html",location_info=location_info,comments=comments,weather_json=weather_json)
-    else:
-        return render_template("location_info_noform.html", location_info=location_info,comments=comments,weather_json=weather_json)
+    # Convert unix time to normal time (code found on: https://stackoverflow.com/questions/3682748/converting-unix-timestamp-string-to-readable-date)
+    current_time = weather_json["currently"]["time"]
+    readable_time = datetime.datetime.fromtimestamp(current_time)
+    readable_time_string = readable_time.strftime('%Y-%m-%d %H:%M:%S')
+    print(readable_time_string)
 
-# app for checking in inserts comments to the location comments table and increments the check-in counter in the zip_data table
+    # If the user has not commented on at this location before, render a template with the check-in form. If they have checked-in before, render a template without the form.
+    if db.execute("SELECT * FROM location_comments WHERE username=:username AND ref_id=:location_id", {"username":session['user'], "location_id":location_id}).rowcount == 0:
+        return render_template("location_info.html",location_info=location_info,comments=comments,weather_json=weather_json,readable_time_string=readable_time_string)
+    else:
+        return render_template("location_info_noform.html", location_info=location_info,comments=comments,weather_json=weather_json,readable_time_string=readable_time_string)
+
+# app for checking in -- inserts comments to the location comments table and increments the check-in counter in the zip_data table
 @app.route("/check_in", methods=["POST"])
 def check_in():
     comment = request.form.get("comment")
@@ -123,6 +133,8 @@ def location_api(lookup_zipcode):
     zip_result = db.execute("SELECT * FROM zip_data WHERE zipcode=:lookup_zipcode",{"lookup_zipcode":lookup_zipcode}).fetchone()
     if zip_result is None:
         return jsonify({"error": "Zipcode does not exist"}), 404
+
+    # Convert database results to JSON
     return jsonify({
             "place_name": zip_result.city,
             "state": zip_result.state,

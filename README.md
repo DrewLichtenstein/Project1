@@ -1,14 +1,12 @@
 # Project 1
 
+File summary: Appliation.py handles all of the functions, import.py is a simple CSV-to-SQL importer for zip code data, and all the various
+html templates are in the main template folder.
+
 Overall, working on this project was really rewarding; I really struggled at first, but I eventually got things to work after many hours
 of practice -- programming can be quite rewarding!
 
-One requirement I couldn't quite figure out how to successfully implement the %LIKE% operator in SQL with variables -- I tried several
-different iteration but can't seem to get the syntax to work. I left my last attempt in as a comment (it's in the search_location
-function) and any suggestions on how to get it to work would be appreciated! As a result, my search result requires a specific location
-to work.
-
-Another thing I had some issue with was requiring users to be logged in; I have sessions set correctly (I think) so I know if someone is
+One requirement I had some issue with was requiring users to be logged in; I have sessions set correctly (I think) so I know if someone is
 logged in and logging out works. What I am not quite clear on is how to track that someone is not logged in -- I tried to cover it
 with a try/except clause (see the search_location function), but no success and seeing if the session['user'] varialbe is set to false
 also didn't work. Thoughts on how I should implement this functionality?
